@@ -1,0 +1,41 @@
+
+/* --- Estilos específicos para cada botón (con tus imágenes) --- */
+/* --- Estilos generales para todos los botones --- */
+button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  width: 15vw; /* O el tamaño relativo que prefieras, por ejemplo 10vw */
+  height: 15vw;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  text-indent: -9999px;
+  position: absolute;
+  bottom: 0;
+}
+
+/* --- Estilos específicos para cada botón --- */
+.boton-grabar {
+  background-image: url('assets/b1.png');
+  left: 0;
+  transform: translateX(calc(17vw - 50%)); /* Centra en la primera casilla */
+}
+
+.boton-back {
+  background-image: url('assets/b2.png');
+  left: 25vw;
+  transform: translateX(calc(14.8vw - 50%)); /* Centra en la segunda casilla */
+}
+
+.boton-particulas {
+  background-image: url('assets/b3.png');
+  left: 50vw;
+  transform: translateX(calc(13vw - 50%)); /* Centra en la tercera casilla */
+}
+
+.boton-acordes {
+  background-image: url('assets/b4.png');
+  left: 75vw;
+  transform: translateX(calc(10.5vw - 50%)); /* Centra en la cuarta casilla */
+}

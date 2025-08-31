@@ -1,0 +1,58 @@
+/* Contenedor del menú */
+#menu-editable {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  width: 250px;
+  background-color: rgba(20,20,20,0.9); /* casi negro, semi-transparente */
+  color: #F2F2F2;
+  font-family: Arial, sans-serif;
+  padding: 15px;
+  border-radius: 10px;
+  z-index: 1000;
+  display: none; /* Inicialmente oculto */
+  backdrop-filter: blur(4px);
+}
+
+/* Botón abrir menú */
+#open-menu-btn {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.15); /* gris claro semi-transparente */
+  color: #FFFFFF; /* texto blanco */
+  font-weight: bold;
+  border: 1px solid rgba(255,255,255,0.3);
+  cursor: pointer;
+  z-index: 1100;
+  backdrop-filter: blur(3px);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+#open-menu-btn:hover {
+  background-color: rgba(255, 255, 255, 0.35);
+  transform: scale(1.05);
+}
+
+/* Botón cerrar dentro del menú */
+#menu-editable .close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+#menu-editable .close-btn:hover {
+  background: rgba(255,255,255,0.35);
+}
