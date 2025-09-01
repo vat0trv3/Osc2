@@ -1,4 +1,4 @@
-# https://vat0trv3.github.io/osc2
+https://vat0trv3.github.io/Osc2
 oscilador audiovisual
 Prototipo de Interacción Visual y Sonora con Partículas y Osciladores
 Descripción
