@@ -76,31 +76,34 @@ class ParticleSystem {
     this.origin = createVector(width / 2, height / 2);
     this.particles = [];
   }
-  addParticle() { this.particles.push(new Particle(this.origin.x, this.origin.y)); }
+  addParticle() {
+    this.particles.push(new Particle(this.origin.x, this.origin.y));
+  }
   run() {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       let p = this.particles[i];
-      p.update(); p.display();
+      p.update();
+      p.display();
       if (p.isDead()) this.particles.splice(i, 1);
     }
-    
+
     if (fondoBlanco) {
-        stroke(0, 88);
+      stroke(0, 88);
     } else {
-        stroke(255, 88);
+      stroke(255, 88);
     }
     strokeWeight(1);
     for (let i = 0; i < this.particles.length; i++) {
       for (let j = i + 1; j < this.particles.length; j++) {
         if (dist(this.particles[i].pos.x, this.particles[i].pos.y,
-          this.particles[j].pos.x, this.particles[j].pos.y) < 50) {
+            this.particles[j].pos.x, this.particles[j].pos.y) < 50) {
           line(this.particles[i].pos.x, this.particles[i].pos.y,
             this.particles[j].pos.x, this.particles[j].pos.y);
         }
-const maxParticles = 100;
-if (this.particles.length > maxParticles) {
-  this.particles.splice(0, this.particles.length - maxParticles);
-}
+        const maxParticles = 100;
+        if (this.particles.length > maxParticles) {
+          this.particles.splice(0, this.particles.length - maxParticles);
+        }
 
       }
     }
@@ -133,7 +136,9 @@ class Molecula {
     textAlign(CENTER, CENTER);
     text(this.letra, this.pos.x, this.pos.y);
   }
-  isDead() { return this.lifespan < 0; }
+  isDead() {
+    return this.lifespan < 0;
+  }
 }
 
 class MoleculaSystem {
@@ -141,11 +146,14 @@ class MoleculaSystem {
     this.origin = createVector(width / 2, height / 2);
     this.moleculas = [];
   }
-  addMolecula(letra) { this.moleculas.push(new Molecula(this.origin.x, this.origin.y, letra)); }
+  addMolecula(letra) {
+    this.moleculas.push(new Molecula(this.origin.x, this.origin.y, letra));
+  }
   run() {
     for (let i = this.moleculas.length - 1; i >= 0; i--) {
       let m = this.moleculas[i];
-      m.update(); m.display();
+      m.update();
+      m.display();
       if (m.isDead()) this.moleculas.splice(i, 1);
     }
   }
@@ -193,7 +201,7 @@ function setup() {
   });
 
   botonParticulas.mousePressed(() => {
-   activarContextoAudio();
+    activarContextoAudio();
     modo = 'particulas';
     apagarOsciladores();
   });
@@ -204,27 +212,31 @@ function draw() {
   } else {
     background(colors.black);
   }
-  
-  
-// Mostrar interfaz solo en fondo oscuro
-if (!fondoBlanco) {
-  image(interfaz, 0, 0, width, height);
-}
 
-// Mostrar plano siempre, con tint adaptado
-push();
-if (fondoBlanco) {
-  tint(255, 0, 255, 255); // tono oscuro para fondo claro
-} else {
-  tint(255, 0, 255, 80); // tono claro para fondo oscuro
-}
-image(plano, 0, 0, width, height);
-pop();
+
+  // Mostrar interfaz solo en fondo oscuro
+  if (!fondoBlanco) {
+    image(interfaz, 0, 0, width, height);
+  }
+
+  // Mostrar plano siempre, con tint adaptado
+  push();
+  if (fondoBlanco) {
+    tint(255, 0, 255, 255); // tono oscuro para fondo claro
+  } else {
+    tint(255, 0, 255, 80); // tono claro para fondo oscuro
+  }
+  image(plano, 0, 0, width, height);
+  pop();
 
   dibujarGuias();
-  
+
   push();
-  if(fondoBlanco){ stroke(0, 80); } else { stroke(255, 80); }
+  if (fondoBlanco) {
+    stroke(0, 80);
+  } else {
+    stroke(255, 80);
+  }
   strokeWeight(1);
   const limiteSuperior = height * 0.2;
   const limiteInferior = height;
@@ -237,8 +249,11 @@ pop();
 
   let points;
   if (touches.length > 0) points = touches;
-  else if (mouseTouchActivo) { mouseTouchPos.x = mouseX; mouseTouchPos.y = mouseY; points = [mouseTouchPos]; }
-  else points = [];
+  else if (mouseTouchActivo) {
+    mouseTouchPos.x = mouseX;
+    mouseTouchPos.y = mouseY;
+    points = [mouseTouchPos];
+  } else points = [];
 
   let limite = height * 0.8;
   points = points.filter(p => p.y < limite);
@@ -261,7 +276,7 @@ pop();
     for (let j = i - 1; j >= 0; j--) {
       let other = letterParticles[j];
       let d = dist(m.pos.x, m.pos.y, other.pos.x, other.pos.y);
-      
+
       if (d < 60) {
         if (fondoBlanco) {
           stroke(0, 50);
@@ -276,16 +291,20 @@ pop();
 
   push();
   noStroke();
-  if(fondoBlanco){
-      fill(0,0,0,50);
+  if (fondoBlanco) {
+    fill(0, 0, 0, 50);
   } else {
-      fill(255,255,255,50);
+    fill(255, 255, 255, 50);
   }
-  textSize(50); textAlign(CENTER, CENTER); text('♫', notaX, notaY);
+  textSize(50);
+  textAlign(CENTER, CENTER);
+  text('♫', notaX, notaY);
   pop();
 }
 
-function mousePressed() { if (touches.length === 0) mouseTouchActivo = !mouseTouchActivo; }
+function mousePressed() {
+  if (touches.length === 0) mouseTouchActivo = !mouseTouchActivo;
+}
 
 function activarContextoAudio() {
   if (!contextoAudioActivado) {
@@ -296,8 +315,8 @@ function activarContextoAudio() {
 
 // ------------------- FUNCIONES AUX -------------------
 function activarOscilador(oscilador, frecuencia, volumen = 0.5) {
-  oscilador.freq(frecuencia, 0.01);   // cambio casi inmediato
-  oscilador.amp(volumen, 0.05);       // ataque corto
+  oscilador.freq(frecuencia, 0.01); // cambio casi inmediato
+  oscilador.amp(volumen, 0.05); // ataque corto
 }
 
 function manejarParticulas(points, oscilador) {
@@ -308,7 +327,7 @@ function manejarParticulas(points, oscilador) {
     let t = points[i];
     let ps = particleSystems[i];
     ps.origin.set(t.x, t.y);
-    ps.addParticle(); 
+    ps.addParticle();
     ps.run();
 
     if (modo === 'particulas' && frameCount % 5 === 0) {
@@ -373,25 +392,29 @@ function getEscalaPorSlice(puntoToque) {
   let anchoColumna = width / 4;
   let columna = floor(puntoToque.x / anchoColumna);
 
+  // Definimos las nuevas escalas con las notas solicitadas
   const escalasVertical = {
-    'Em': [329.63, 392.00, 440.00, 493.88, 587.33],
-    'Am': [440.00, 523.25, 587.33, 659.26, 783.99],
-    'Dm': [293.66, 349.23, 392.00, 440.00, 523.25],
-    'Bm': [493.88, 587.33, 659.26, 739.99, 880.00]
+    'D#m': [311.13, 349.23, 370.00, 415.30, 466.16], // Re#m: Re#, Fa#, Sol#, La#, Do#
+    'C#m': [277.18, 311.13, 349.23, 369.99, 415.30], // Do#m: Do#, Re#, Mi, Fa#, Sol#
+    'Bm': [246.94, 293.66, 329.63, 369.99, 440.00], // Si m: Si, Do#, Re, Mi, Fa#
+    'A#m': [233.08, 261.63, 293.66, 311.13, 349.23] // La#m: La#, Si#, Do#, Re#, Mi# (La#, Do, Do#, Re#, Fa)
   };
 
   let escalaSeleccionada;
-  if (columna === 0) escalaSeleccionada = 'Em';
-  else if (columna === 1) escalaSeleccionada = 'Am';
-  else if (columna === 2) escalaSeleccionada = 'Dm';
-  else if (columna === 3) escalaSeleccionada = 'Bm';
+  if (columna === 0) escalaSeleccionada = 'D#m';
+  else if (columna === 1) escalaSeleccionada = 'C#m';
+  else if (columna === 2) escalaSeleccionada = 'Bm';
+  else if (columna === 3) escalaSeleccionada = 'A#m';
   else return null;
 
   let notas = escalasVertical[escalaSeleccionada];
   let indice = floor(map(puntoToque.y, limiteSuperior, limiteInferior, 0, notas.length));
   indice = constrain(indice, 0, notas.length - 1);
 
-  return { escala: escalaSeleccionada, frecuencia: notas[indice] };
+  return {
+    escala: escalaSeleccionada,
+    frecuencia: notas[indice]
+  };
 }
 
 function dibujarGuias() {
