@@ -10,7 +10,7 @@ let currentWaveIndex = 0;
 
 let mouseTouchActivo = false;
 let mouseTouchPos = { x: 0, y: 0 };
-let phrase = "VAVATOTOTRATRAVAVEVE";
+let phrase = "pppppoooooowwwwweeeeerrrrreeeedddd..bbyyy...vvvvvvVvVvVvAaAaAaAtTtTtTtTOoOoOo00000oOotTtTtrRrRraAaAavVvVvEeEeE";
 let phraseIndex = 0;
 let letterParticles = [];
 
@@ -402,6 +402,7 @@ function apagarOsciladores() {
 }
 
 // ------------------- COLUMNAS / ESCALAS -------------------
+// ------------------- COLUMNAS / ESCALAS -------------------
 function getEscalaPorSlice(puntoToque) {
   const limiteSuperior = height * 0.2;
   const limiteInferior = height;
@@ -409,19 +410,22 @@ function getEscalaPorSlice(puntoToque) {
   let anchoColumna = width / 4;
   let columna = floor(puntoToque.x / anchoColumna);
 
-  // Definimos las nuevas escalas con las notas solicitadas
+  // --- NUEVA PROGRESIÓN UNIVERSAL en La menor (Am) ---
+  // Cada arreglo contiene 5 notas de la escala pentatónica del acorde,
+  // lo que garantiza que casi cualquier melodía suene bien.
   const escalasVertical = {
-    'D#m': [311.13, 349.23, 370.00, 415.30, 466.16], // Re#m: Re#, Fa#, Sol#, La#, Do#
-    'C#m': [277.18, 311.13, 349.23, 369.99, 415.30], // Do#m: Do#, Re#, Mi, Fa#, Sol#
-    'Bm': [246.94, 293.66, 329.63, 369.99, 440.00], // Si m: Si, Do#, Re, Mi, Fa#
-    'A#m': [233.08, 261.63, 293.66, 311.13, 349.23] // La#m: La#, Si#, Do#, Re#, Mi# (La#, Do, Do#, Re#, Fa)
+    'Am': [220.00, 261.63, 293.66, 329.63, 392.00], // A, C, D, E, G
+    'G':  [196.00, 220.00, 246.94, 293.66, 329.63], // G, A, B, D, E
+    'C':  [261.63, 293.66, 329.63, 392.00, 440.00], // C, D, E, G, A
+    'F':  [174.61, 220.00, 261.63, 293.66, 349.23]  // F, A, C, D, F
   };
 
   let escalaSeleccionada;
-  if (columna === 0) escalaSeleccionada = 'D#m';
-  else if (columna === 1) escalaSeleccionada = 'C#m';
-  else if (columna === 2) escalaSeleccionada = 'Bm';
-  else if (columna === 3) escalaSeleccionada = 'A#m';
+  // Mapeamos cada columna a su acorde en la progresión
+  if (columna === 0) escalaSeleccionada = 'Am';
+  else if (columna === 1) escalaSeleccionada = 'G';
+  else if (columna === 2) escalaSeleccionada = 'C';
+  else if (columna === 3) escalaSeleccionada = 'F';
   else return null;
 
   let notas = escalasVertical[escalaSeleccionada];
