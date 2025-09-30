@@ -4,28 +4,30 @@ let moleculaSystems = [];
 let modo = 'sonido';
 let osciladorSonido, osciladorMoleculas;
 let contextoAudioActivado = false;
-let haIniciado = false; // <-- VARIABLE NUEVA para controlar el inicio
+let haIniciado = false;
+
+// --- VARIABLES NUEVAS PARA EL ARPEGIADOR ---
+let arpegioClock = 0;
+let arpegioSpeed = 150; // Velocidad en ms. ¡Puedes cambiar este valor!
+let arpegioNoteIndex = 0;
+// -----------------------------------------
+
 let waveTypes = ['sine', 'triangle', 'square', 'saw'];
 let currentWaveIndex = 0;
-
 let mouseTouchActivo = false;
 let mouseTouchPos = { x: 0, y: 0 };
 let phrase = "pppppoooooowwwwweeeeerrrrreeeedddd..bbyyy...vvvvvvVvVvVvAaAaAaAtTtTtTtTOoOoOo00000oOotTtTtrRrRraAaAavVvVvEeEeE";
 let phraseIndex = 0;
 let letterParticles = [];
-
 let notaX, notaY;
 
 function noCanvasScroll() {
   document.body.style.overflow = 'hidden';
 }
 
-// Botones HTML
 let botonGrabar, botonBack, botonAcordes, botonParticulas;
-
 let fondoBlanco = false;
 
-// Paleta de colores
 const colors = {
   black: "#000000",
   darkGray: "#1A1A1A",
@@ -38,39 +40,30 @@ const colors = {
   white: "#F2F2F2"
 };
 
-// ------------------- CLASES -------------------
-
+// --- Clases (Particle, ParticleSystem, Molecula, etc. no cambian) ---
 class Particle {
   constructor(x, y) {
     this.pos = createVector(x, y);
     this.vel = p5.Vector.random2D().mult(random(0.5, 2));
     this.acc = createVector(0, 0);
     this.lifespan = 255;
-    this.r = random(4, 8); // más grandes
+    this.r = random(4, 8);
   }
-
   update() {
-    this.vel.rotate(0.01); // rotación más suave
+    this.vel.rotate(0.01);
     this.vel.add(this.acc);
     this.pos.add(this.vel);
-    this.lifespan -= 1.2; // se desvanecen más rápido
+    this.lifespan -= 1.2;
   }
-
   display() {
-    if (fondoBlanco) {
-      fill(0, this.lifespan);
-    } else {
-      fill(255, this.lifespan);
-    }
+    fill(fondoBlanco ? 0 : 255, this.lifespan);
     noStroke();
     ellipse(this.pos.x, this.pos.y, this.r);
   }
-
   isDead() {
     return this.lifespan < 0;
   }
 }
-
 
 class ParticleSystem {
   constructor() {
@@ -87,12 +80,7 @@ class ParticleSystem {
       p.display();
       if (p.isDead()) this.particles.splice(i, 1);
     }
-
-    if (fondoBlanco) {
-      stroke(0, 88);
-    } else {
-      stroke(255, 88);
-    }
+    stroke(fondoBlanco ? 0 : 255, 88);
     strokeWeight(1);
     for (let i = 0; i < this.particles.length; i++) {
       for (let j = i + 1; j < this.particles.length; j++) {
@@ -105,7 +93,6 @@ class ParticleSystem {
         if (this.particles.length > maxParticles) {
           this.particles.splice(0, this.particles.length - maxParticles);
         }
-
       }
     }
   }
@@ -127,11 +114,7 @@ class Molecula {
     this.vel.mult(0.98);
   }
   display() {
-    if (fondoBlanco) {
-      fill(0, 0, 0, this.lifespan);
-    } else {
-      fill(255, 255, 255, this.lifespan);
-    }
+    fill(fondoBlanco ? 0 : 255, this.lifespan);
     noStroke();
     textSize(this.textSize);
     textAlign(CENTER, CENTER);
@@ -160,7 +143,7 @@ class MoleculaSystem {
   }
 }
 
-// ------------------- P5.JS -------------------
+
 function preload() {
   interfaz = loadImage("fondonegro.png");
   plano = loadImage("assets/4f.png");
@@ -170,8 +153,7 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   notaX = width - 60;
   notaY = 60;
-
-  noCanvasScroll(); // 👈 evita scroll en móviles
+  noCanvasScroll();
 
   osciladorSonido = new p5.Oscillator('sine');
   osciladorSonido.amp(0);
@@ -186,68 +168,49 @@ function setup() {
   botonAcordes = select('.boton-acordes');
   botonParticulas = select('.boton-particulas');
 
-  // Listeners de botones SIN activar el audio (se hace en mousePressed)
   botonGrabar.mousePressed(() => {
     fondoBlanco = !fondoBlanco;
   });
-
   botonBack.mousePressed(() => {
     modo = 'sonido';
     apagarOsciladores();
   });
-
   botonAcordes.mousePressed(() => {
     modo = 'acordes';
     apagarOsciladores();
   });
-
+  
+  // <-- MODIFICADO: El tercer botón ahora activa el modo 'arpegio'
   botonParticulas.mousePressed(() => {
-    modo = 'particulas';
+    modo = 'arpegio'; 
     apagarOsciladores();
   });
 }
 
 function draw() {
-  // <-- CÓDIGO NUEVO: Pantalla de inicio
   if (!haIniciado) {
     background(colors.black);
     fill(colors.white);
     textAlign(CENTER, CENTER);
     textSize(24);
     text("Toca la pantalla para comenzar", width / 2, height / 2);
-    return; // Detiene el resto del draw hasta que se inicie
-  }
-  // Fin del código nuevo
-
-  if (fondoBlanco) {
-    background(colors.white);
-  } else {
-    background(colors.black);
+    return;
   }
 
-  // Mostrar interfaz solo en fondo oscuro
+  background(fondoBlanco ? colors.white : colors.black);
   if (!fondoBlanco) {
     image(interfaz, 0, 0, width, height);
   }
 
-  // Mostrar plano siempre, con tint adaptado
   push();
-  if (fondoBlanco) {
-    tint(255, 0, 255, 255); // tono oscuro para fondo claro
-  } else {
-    tint(255, 0, 255, 80); // tono claro para fondo oscuro
-  }
+  tint(255, 0, 255, fondoBlanco ? 255 : 80);
   image(plano, 0, 0, width, height);
   pop();
 
   dibujarGuias();
 
   push();
-  if (fondoBlanco) {
-    stroke(0, 80);
-  } else {
-    stroke(255, 80);
-  }
+  stroke(fondoBlanco ? 0 : 255, 80);
   strokeWeight(1);
   const limiteSuperior = height * 0.2;
   const limiteInferior = height;
@@ -269,11 +232,12 @@ function draw() {
   let limite = height * 0.8;
   points = points.filter(p => p.y < limite);
 
+  // <-- MODIFICADO: Se añade la condición para el nuevo modo
   if (modo === 'sonido') manejarParticulas(points, osciladorSonido);
-  else if (modo === 'particulas') manejarParticulas(points, null);
+  else if (modo === 'arpegio') manejarArpegio(points, osciladorSonido); // <-- NUEVO
   else if (modo === 'acordes') manejarMoleculas(points, osciladorMoleculas);
-
-  // Bucle para actualizar, dibujar y CONECTAR letras adicionales
+  
+  // El resto del draw (bucle de letterParticles, etc.) no cambia...
   for (let i = letterParticles.length - 1; i >= 0; i--) {
     let m = letterParticles[i];
     m.update();
@@ -282,18 +246,11 @@ function draw() {
       letterParticles.splice(i, 1);
       continue;
     }
-
-    // Compara la letra actual con las otras para conectarlas
     for (let j = i - 1; j >= 0; j--) {
       let other = letterParticles[j];
       let d = dist(m.pos.x, m.pos.y, other.pos.x, other.pos.y);
-
       if (d < 60) {
-        if (fondoBlanco) {
-          stroke(0, 50);
-        } else {
-          stroke(255, 50);
-        }
+        stroke(fondoBlanco ? 0 : 255, 50);
         strokeWeight(1);
         line(m.pos.x, m.pos.y, other.pos.x, other.pos.y);
       }
@@ -302,11 +259,7 @@ function draw() {
 
   push();
   noStroke();
-  if (fondoBlanco) {
-    fill(0, 0, 0, 50);
-  } else {
-    fill(255, 255, 255, 50);
-  }
+  fill(fondoBlanco ? 0 : 255, 50);
   textSize(50);
   textAlign(CENTER, CENTER);
   text('♫', notaX, notaY);
@@ -314,12 +267,10 @@ function draw() {
 }
 
 function mousePressed() {
-  // <-- CÓDIGO MODIFICADO: Maneja el primer clic para activar el audio
   if (!haIniciado) {
     activarContextoAudio();
     haIniciado = true;
   }
-  // El código original se mantiene
   if (touches.length === 0) mouseTouchActivo = !mouseTouchActivo;
 }
 
@@ -330,11 +281,41 @@ function activarContextoAudio() {
   }
 }
 
-// ------------------- FUNCIONES AUX -------------------
 function activarOscilador(oscilador, frecuencia, volumen = 0.5) {
-  oscilador.freq(frecuencia, 0.01); // cambio casi inmediato
-  oscilador.amp(volumen, 0.05); // ataque corto
+  oscilador.freq(frecuencia, 0.01);
+  oscilador.amp(volumen, 0.05);
 }
+
+// --- FUNCIÓN NUEVA PARA EL ARPEGIADOR ---
+function manejarArpegio(points, oscilador) {
+  // Primero, manejamos los visuales igual que siempre
+  manejarParticulas(points, null); // Pasamos 'null' para que no genere sonido por sí misma
+
+  if (points.length > 0) {
+    // Si hay al menos un dedo tocando...
+    let t = points[0]; // El arpegiador solo seguirá al primer dedo
+    let resultado = getEscalaPorSlice(t);
+
+    if (resultado) {
+      let notasDelAcorde = resultado.escala; // 'Am', 'G', etc.
+      
+      // Verificamos si es tiempo de tocar la siguiente nota
+      if (millis() - arpegioClock > arpegioSpeed) {
+        let frecuenciaActual = escalasVertical[notasDelAcorde][arpegioNoteIndex];
+        activarOscilador(oscilador, frecuenciaActual, 0.5);
+
+        // Avanzamos al siguiente índice de nota y lo reiniciamos si llega al final
+        arpegioNoteIndex = (arpegioNoteIndex + 1) % escalasVertical[notasDelAcorde].length;
+        
+        arpegioClock = millis(); // Reiniciamos el reloj
+      }
+    }
+  } else {
+    // Si no hay dedos tocando, apagamos el sonido
+    oscilador.amp(0, 0.1); // Un poco más lento para que no se corte tan brusco
+  }
+}
+// -----------------------------------------
 
 function manejarParticulas(points, oscilador) {
   while (particleSystems.length < points.length) particleSystems.push(new ParticleSystem());
@@ -347,12 +328,6 @@ function manejarParticulas(points, oscilador) {
     ps.addParticle();
     ps.run();
 
-    if (modo === 'particulas' && frameCount % 5 === 0) {
-      let nextLetter = phrase.charAt(phraseIndex);
-      letterParticles.push(new Molecula(t.x, t.y, nextLetter));
-      phraseIndex = (phraseIndex + 1) % phrase.length;
-    }
-
     if (oscilador) {
       let resultado = getEscalaPorSlice(t);
       if (resultado) {
@@ -360,9 +335,8 @@ function manejarParticulas(points, oscilador) {
       }
     }
   }
-
   if (oscilador && points.length === 0) {
-    oscilador.amp(0, 0.05); // apagar suave
+    oscilador.amp(0, 0.05);
   }
 }
 
@@ -374,12 +348,10 @@ function manejarMoleculas(points, oscilador) {
     let t = points[i];
     let ms = moleculaSystems[i];
     ms.origin.set(t.x, t.y);
-
     let nextLetter = phrase.charAt(phraseIndex);
     ms.addMolecula(nextLetter);
     phraseIndex = (phraseIndex + 1) % phrase.length;
     ms.run();
-
     if (oscilador) {
       let resultado = getEscalaPorSlice(t);
       if (resultado) {
@@ -387,41 +359,33 @@ function manejarMoleculas(points, oscilador) {
       }
     }
   }
-
   if (oscilador && points.length === 0) {
     oscilador.amp(0, 0.05);
   }
 }
 
-
 function apagarOsciladores() {
   osciladorSonido.amp(0, 0.05);
   osciladorMoleculas.amp(0, 0.05);
-  // No reiniciamos el contexto de audio, solo los osciladores
   letterParticles = [];
 }
 
-// ------------------- COLUMNAS / ESCALAS -------------------
-// ------------------- COLUMNAS / ESCALAS -------------------
+
+// He tenido que duplicar esta constante aquí para que la función manejarArpegio pueda acceder a ella
+const escalasVertical = {
+    'Am': [220.00, 261.63, 293.66, 329.63, 392.00],
+    'G':  [196.00, 220.00, 246.94, 293.66, 329.63],
+    'C':  [261.63, 293.66, 329.63, 392.00, 440.00],
+    'F':  [174.61, 220.00, 261.63, 293.66, 349.23]
+};
+  
 function getEscalaPorSlice(puntoToque) {
   const limiteSuperior = height * 0.2;
   const limiteInferior = height;
-
   let anchoColumna = width / 4;
   let columna = floor(puntoToque.x / anchoColumna);
 
-  // --- NUEVA PROGRESIÓN UNIVERSAL en La menor (Am) ---
-  // Cada arreglo contiene 5 notas de la escala pentatónica del acorde,
-  // lo que garantiza que casi cualquier melodía suene bien.
-  const escalasVertical = {
-    'Am': [220.00, 261.63, 293.66, 329.63, 392.00], // A, C, D, E, G
-    'G':  [196.00, 220.00, 246.94, 293.66, 329.63], // G, A, B, D, E
-    'C':  [261.63, 293.66, 329.63, 392.00, 440.00], // C, D, E, G, A
-    'F':  [174.61, 220.00, 261.63, 293.66, 349.23]  // F, A, C, D, F
-  };
-
   let escalaSeleccionada;
-  // Mapeamos cada columna a su acorde en la progresión
   if (columna === 0) escalaSeleccionada = 'Am';
   else if (columna === 1) escalaSeleccionada = 'G';
   else if (columna === 2) escalaSeleccionada = 'C';
