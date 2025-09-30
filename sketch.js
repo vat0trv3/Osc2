@@ -4,6 +4,7 @@ let moleculaSystems = [];
 let modo = 'sonido';
 let osciladorSonido, osciladorMoleculas;
 let contextoAudioActivado = false;
+let haIniciado = false; // <-- VARIABLE NUEVA para controlar el inicio
 let waveTypes = ['sine', 'triangle', 'square', 'saw'];
 let currentWaveIndex = 0;
 
@@ -164,6 +165,7 @@ function preload() {
   interfaz = loadImage("fondonegro.png");
   plano = loadImage("assets/4f.png");
 }
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   notaX = width - 60;
@@ -184,8 +186,8 @@ function setup() {
   botonAcordes = select('.boton-acordes');
   botonParticulas = select('.boton-particulas');
 
+  // Listeners de botones SIN activar el audio (se hace en mousePressed)
   botonGrabar.mousePressed(() => {
-    activarContextoAudio();
     fondoBlanco = !fondoBlanco;
   });
 
@@ -195,24 +197,33 @@ function setup() {
   });
 
   botonAcordes.mousePressed(() => {
-    activarContextoAudio();
     modo = 'acordes';
     apagarOsciladores();
   });
 
   botonParticulas.mousePressed(() => {
-    activarContextoAudio();
     modo = 'particulas';
     apagarOsciladores();
   });
 }
+
 function draw() {
+  // <-- CÓDIGO NUEVO: Pantalla de inicio
+  if (!haIniciado) {
+    background(colors.black);
+    fill(colors.white);
+    textAlign(CENTER, CENTER);
+    textSize(24);
+    text("Toca la pantalla para comenzar", width / 2, height / 2);
+    return; // Detiene el resto del draw hasta que se inicie
+  }
+  // Fin del código nuevo
+
   if (fondoBlanco) {
     background(colors.white);
   } else {
     background(colors.black);
   }
-
 
   // Mostrar interfaz solo en fondo oscuro
   if (!fondoBlanco) {
@@ -303,6 +314,12 @@ function draw() {
 }
 
 function mousePressed() {
+  // <-- CÓDIGO MODIFICADO: Maneja el primer clic para activar el audio
+  if (!haIniciado) {
+    activarContextoAudio();
+    haIniciado = true;
+  }
+  // El código original se mantiene
   if (touches.length === 0) mouseTouchActivo = !mouseTouchActivo;
 }
 
@@ -380,7 +397,7 @@ function manejarMoleculas(points, oscilador) {
 function apagarOsciladores() {
   osciladorSonido.amp(0, 0.05);
   osciladorMoleculas.amp(0, 0.05);
-  contextoAudioActivado = false;
+  // No reiniciamos el contexto de audio, solo los osciladores
   letterParticles = [];
 }
 
