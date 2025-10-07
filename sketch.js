@@ -37,67 +37,90 @@ let contextoAudioActivado = false;
 let haIniciado = false;
 
 let arpegioClock = 0;
+let arpegioSpeed = 150; 
 let arpegioNoteIndex = 0;
 
 let waveTypes = ['sine', 'triangle', 'square', 'saw'];
-let currentWaveIndex = 0;
+let currentWaveIndex = 0; 
 
 let mouseTouchActivo = false;
 let mouseTouchPos = { x: 0, y: 0 };
-let phrase = "P     O       W        E       R        E         D       B       Y        V       A      T     O       T       R       A       V         E     ";
+let phrase = "pppppoooooowwwwweeeeerrrrreeeedddd..bbyyy...vvvvvvVvVvVvAaAaAaAtTtTtTtTOoOoOo00000oOotTtTtrRrRraAaAavVvVvEeEeE";
 let phraseIndex = 0;
+let letterParticles = [];
 
 let notaX, notaY;
-let botonGrabar, botonBack, botonLetras, botonParticulas;
+
+function noCanvasScroll() {
+  document.body.style.overflow = 'hidden';
+}
+
+let botonGrabar, botonBack, botonAcordes, botonParticulas;
 let fondoBlanco = false;
 
 const colors = {
   black: "#000000",
+  darkGray: "#1A1A1A",
+  magenta: "#FF00E6",
+  pink: "#FF2AAF",
+  red: "#FF004D",
+  green: "#00FF73",
+  cyan: "#00FFFF",
+  yellow: "#FFFF00",
   white: "#F2F2F2"
 };
 
-// --- CLASES ---
-
+// --- CLASE PARTICLE MODIFICADA ---
 class Particle {
-  constructor(x, y, origin) {
+  constructor(x, y, origin) { // Se añade 'origin' para el modo 'saw'
     this.pos = createVector(x, y);
     this.vel = p5.Vector.random2D().mult(random(0.5, 2));
     this.acc = createVector(0, 0);
     this.lifespan = 255;
     this.r = random(4, 8);
-    this.origin = origin.copy();
-    this.turnTimer = 0;
+    
+    // Propiedades nuevas
+    this.origin = origin.copy(); // Guardamos el punto de origen
+    this.turnTimer = 0; // Temporizador para la onda cuadrada
   }
 
   update() {
+    // --- LÓGICA VISUAL BASADA EN LA ONDA ACTUAL ---
     let currentWave = waveTypes[currentWaveIndex];
 
     switch (currentWave) {
       case 'sine':
-        this.vel.rotate(CONFIG.SINE_WAVE_ROTATION);
+        // Movimiento suave y curvo (original)
+        this.vel.rotate(0.01);
         break;
+      
       case 'triangle':
-        this.vel.rotate(random(CONFIG.TRIANGLE_WAVE_ROTATION_MIN, CONFIG.TRIANGLE_WAVE_ROTATION_MAX));
+        // Movimiento errático y nervioso
+        this.vel.rotate(random(-0.1, 0.1));
         break;
+        
       case 'square':
+        // Movimiento en 90 grados
         this.turnTimer++;
-        if (this.turnTimer > CONFIG.SQUARE_WAVE_TURN_INTERVAL) {
-          this.vel.rotate(random() > 0.5 ? HALF_PI : -HALF_PI);
+        if (this.turnTimer > 30) { // Gira cada 30 frames
+          this.vel.rotate(random() > 0.5 ? HALF_PI : -HALF_PI); // Gira 90 grados a la derecha o izquierda
           this.turnTimer = 0;
         }
         break;
+        
       case 'saw':
+        // Movimiento con "gravedad" hacia el origen
         let dir = p5.Vector.sub(this.origin, this.pos);
         dir.normalize();
-        dir.mult(CONFIG.SAW_WAVE_GRAVITY);
+        dir.mult(0.08); // Fuerza de la gravedad
         this.acc.add(dir);
         break;
     }
-
+    
     this.vel.add(this.acc);
     this.pos.add(this.vel);
-    this.lifespan -= CONFIG.PARTICLE_LIFESPAN_DECAY;
-    this.acc.mult(0);
+    this.lifespan -= 1.2;
+    this.acc.mult(0); // Reiniciar la aceleración
   }
 
   display() {
@@ -111,16 +134,18 @@ class Particle {
   }
 }
 
+// --- CLASE PARTICLESYSTEM MODIFICADA ---
 class ParticleSystem {
   constructor() {
     this.origin = createVector(width / 2, height / 2);
     this.particles = [];
   }
-
+  
+  // Se modifica para pasar el origen a cada partícula nueva
   addParticle() {
     this.particles.push(new Particle(this.origin.x, this.origin.y, this.origin));
   }
-
+  
   run() {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       let p = this.particles[i];
@@ -134,13 +159,16 @@ class ParticleSystem {
     strokeWeight(1);
     for (let i = 0; i < this.particles.length; i++) {
       for (let j = i + 1; j < this.particles.length; j++) {
-        if (dist(this.particles[i].pos.x, this.particles[i].pos.y, this.particles[j].pos.x, this.particles[j].pos.y) < CONFIG.PARTICLE_CONNECTION_DISTANCE) {
-          line(this.particles[i].pos.x, this.particles[i].pos.y, this.particles[j].pos.x, this.particles[j].pos.y);
+        if (dist(this.particles[i].pos.x, this.particles[i].pos.y,
+            this.particles[j].pos.x, this.particles[j].pos.y) < 50) {
+          line(this.particles[i].pos.x, this.particles[i].pos.y,
+            this.particles[j].pos.x, this.particles[j].pos.y);
+        }
+        const maxParticles = 100;
+        if (this.particles.length > maxParticles) {
+          this.particles.splice(0, this.particles.length - maxParticles);
         }
       }
-    }
-    if (this.particles.length > CONFIG.PARTICLE_MAX_PER_SYSTEM) {
-        this.particles.splice(0, this.particles.length - CONFIG.PARTICLE_MAX_PER_SYSTEM);
     }
   }
 }
@@ -235,7 +263,7 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   notaX = width - 60;
   notaY = 60;
-  document.body.style.overflow = 'hidden'; // Evita scroll
+  noCanvasScroll();
 
   // Inicializar osciladores
   osciladorSonido = new p5.Oscillator(waveTypes[currentWaveIndex]);
@@ -268,7 +296,12 @@ function draw() {
     return;
   }
 
-  background(fondoBlanco ? colors.white : colors.black);
+  // EFECTO DE ESTELA (CORREGIDO)
+  let bgColor = fondoBlanco ? colors.white : colors.black;
+  fill(bgColor, 40);
+  noStroke();
+  rect(0, 0, width, height);
+
   if (!fondoBlanco) { image(interfaz, 0, 0, width, height); }
 
   push();
@@ -447,31 +480,33 @@ function activarContextoAudio() {
   }
 }
 
+// --- NUEVOS ACORDES ---
 const escalasVertical = {
-  'Am': [220.00, 261.63, 293.66, 329.63, 392.00],
-  'G': [196.00, 220.00, 246.94, 293.66, 329.63],
-  'C': [261.63, 293.66, 329.63, 392.00, 440.00],
-  'F': [174.61, 220.00, 261.63, 293.66, 349.23]
+  'Am': [220.00, 261.63, 329.63, 440.00, 523.25], // La, Do, Mi, La, Do
+  'Em': [164.81, 196.00, 246.94, 329.63, 392.00], // Mi, Sol, Si, Mi, Sol
+  'C':  [261.63, 329.63, 392.00, 523.25, 659.26], // Do, Mi, Sol, Do, Mi
+  'G7': [196.00, 246.94, 293.66, 349.23, 392.00]  // Sol, Si, Re, Fa, Sol
 };
-
+  
 function getEscalaPorSlice(puntoToque) {
-  const limiteSuperior = height * 0.2;
-  const limiteInferior = height;
-  let anchoColumna = width / 4;
-  let columna = floor(puntoToque.x / anchoColumna);
-  
-  let escalaSeleccionada;
-  if (columna === 0) escalaSeleccionada = 'Am';
-  else if (columna === 1) escalaSeleccionada = 'G';
-  else if (columna === 2) escalaSeleccionada = 'C';
-  else if (columna === 3) escalaSeleccionada = 'F';
-  else return null;
+    const limiteSuperior = height * 0.2;
+    const limiteInferior = height;
+    let anchoColumna = width / 4;
+    let columna = floor(puntoToque.x / anchoColumna);
+    
+    let escalaSeleccionada;
+    // Nueva progresión de acordes
+    if (columna === 0) escalaSeleccionada = 'Am';
+    else if (columna === 1) escalaSeleccionada = 'Em';
+    else if (columna === 2) escalaSeleccionada = 'C';
+    else if (columna === 3) escalaSeleccionada = 'G7';
+    else return null;
 
-  let notas = escalasVertical[escalaSeleccionada];
-  let indice = floor(map(puntoToque.y, limiteSuperior, limiteInferior, 0, notas.length));
-  indice = constrain(indice, 0, notas.length - 1);
-  
-  return { escala: escalaSeleccionada, frecuencia: notas[indice] };
+    let notas = escalasVertical[escalaSeleccionada];
+    let indice = floor(map(puntoToque.y, limiteSuperior, limiteInferior, 0, notas.length));
+    indice = constrain(indice, 0, notas.length - 1);
+    
+    return { escala: escalaSeleccionada, frecuencia: notas[indice] };
 }
 
 function dibujarGuias() {
@@ -486,4 +521,11 @@ function dibujarGuias() {
   }
   drawingContext.setLineDash([]);
   pop();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  // Actualizar la posición de la nota al cambiar el tamaño de la ventana
+  notaX = width - 60;
+  notaY = 60;
 }
