@@ -1,194 +1,207 @@
+// --- CONFIGURACIÓN GLOBAL DEL PROYECTO ---
+const CONFIG = {
+  // Partículas del Plexus
+  PARTICLE_LIFESPAN_DECAY: 1.2,
+  PARTICLE_CONNECTION_DISTANCE: 50,
+  PARTICLE_MAX_PER_SYSTEM: 100,
+  SINE_WAVE_ROTATION: 0.01,
+  TRIANGLE_WAVE_ROTATION_MIN: -0.1,
+  TRIANGLE_WAVE_ROTATION_MAX: 0.1,
+
+  // Comportamiento de Ondas
+  SQUARE_WAVE_TURN_INTERVAL: 30, // en frames
+  SAW_WAVE_GRAVITY: 0.08,
+
+  // Partículas de Texto ('Letras')
+  LETRA_LIFESPAN_DECAY: 1.5,
+  LETRA_MAX_SPEED: 4,
+  LETRA_MAX_FORCE: 0.3,
+  LETRA_ROTATION_SPEED_FACTOR: 0.02,
+
+  // Interfaz
+  NOTA_ICON_RADIO: 30,
+  ARPEGGIO_SPEED_MIN: 50,  // ms
+  ARPEGGIO_SPEED_MAX: 400, // ms
+  AUDIO_AMP_ATTACK: 0.05,
+  AUDIO_AMP_RELEASE: 0.1
+};
+
+// --- VARIABLES GLOBALES ---
 let interfaz, plano;
 let particleSystems = [];
-let moleculaSystems = [];
+let letterParticleSystems = []; // Cambiado de letraSystems
 let modo = 'sonido';
-let osciladorSonido, osciladorMoleculas;
+let osciladorSonido, osciladorLetras;
 let contextoAudioActivado = false;
 let haIniciado = false;
 
 let arpegioClock = 0;
-let arpegioSpeed = 150; 
 let arpegioNoteIndex = 0;
 
 let waveTypes = ['sine', 'triangle', 'square', 'saw'];
-let currentWaveIndex = 0; 
+let currentWaveIndex = 0;
 
 let mouseTouchActivo = false;
 let mouseTouchPos = { x: 0, y: 0 };
-let phrase = "pppppoooooowwwwweeeeerrrrreeeedddd..bbyyy...vvvvvvVvVvVvAaAaAaAtTtTtTtTOoOoOo00000oOotTtTtrRrRraAaAavVvVvEeEeE";
+let phrase = "POWERED BY VATOTRAVE"; // Frase limpia
 let phraseIndex = 0;
-let letterParticles = [];
 
 let notaX, notaY;
-
-function noCanvasScroll() {
-  document.body.style.overflow = 'hidden';
-}
-
-let botonGrabar, botonBack, botonAcordes, botonParticulas;
+let botonGrabar, botonBack, botonLetras, botonParticulas;
 let fondoBlanco = false;
 
 const colors = {
   black: "#000000",
-  darkGray: "#1A1A1A",
-  magenta: "#FF00E6",
-  pink: "#FF2AAF",
-  red: "#FF004D",
-  green: "#00FF73",
-  cyan: "#00FFFF",
-  yellow: "#FFFF00",
   white: "#F2F2F2"
 };
 
-// --- CLASE PARTICLE MODIFICADA ---
+// --- CLASES ---
+
+// Clase para el Plexus (del osc2 principal)
 class Particle {
-  constructor(x, y, origin) { // Se añade 'origin' para el modo 'saw'
+  constructor(x, y, origin) {
     this.pos = createVector(x, y);
     this.vel = p5.Vector.random2D().mult(random(0.5, 2));
     this.acc = createVector(0, 0);
     this.lifespan = 255;
     this.r = random(4, 8);
-    
-    // Propiedades nuevas
-    this.origin = origin.copy(); // Guardamos el punto de origen
-    this.turnTimer = 0; // Temporizador para la onda cuadrada
+    this.origin = origin.copy();
+    this.turnTimer = 0;
   }
-
   update() {
-    // --- LÓGICA VISUAL BASADA EN LA ONDA ACTUAL ---
     let currentWave = waveTypes[currentWaveIndex];
-
     switch (currentWave) {
-      case 'sine':
-        // Movimiento suave y curvo (original)
-        this.vel.rotate(0.01);
-        break;
-      
-      case 'triangle':
-        // Movimiento errático y nervioso
-        this.vel.rotate(random(-0.1, 0.1));
-        break;
-        
+      case 'sine': this.vel.rotate(CONFIG.SINE_WAVE_ROTATION); break;
+      case 'triangle': this.vel.rotate(random(CONFIG.TRIANGLE_WAVE_ROTATION_MIN, CONFIG.TRIANGLE_WAVE_ROTATION_MAX)); break;
       case 'square':
-        // Movimiento en 90 grados
         this.turnTimer++;
-        if (this.turnTimer > 30) { // Gira cada 30 frames
-          this.vel.rotate(random() > 0.5 ? HALF_PI : -HALF_PI); // Gira 90 grados a la derecha o izquierda
+        if (this.turnTimer > CONFIG.SQUARE_WAVE_TURN_INTERVAL) {
+          this.vel.rotate(random() > 0.5 ? HALF_PI : -HALF_PI);
           this.turnTimer = 0;
         }
         break;
-        
       case 'saw':
-        // Movimiento con "gravedad" hacia el origen
         let dir = p5.Vector.sub(this.origin, this.pos);
         dir.normalize();
-        dir.mult(0.08); // Fuerza de la gravedad
+        dir.mult(CONFIG.SAW_WAVE_GRAVITY);
         this.acc.add(dir);
         break;
     }
-    
     this.vel.add(this.acc);
     this.pos.add(this.vel);
-    this.lifespan -= 1.2;
-    this.acc.mult(0); // Reiniciar la aceleración
+    this.lifespan -= CONFIG.PARTICLE_LIFESPAN_DECAY;
+    this.acc.mult(0);
   }
-
   display() {
     fill(fondoBlanco ? 0 : 255, this.lifespan);
     noStroke();
     ellipse(this.pos.x, this.pos.y, this.r);
   }
-
-  isDead() {
-    return this.lifespan < 0;
-  }
+  isDead() { return this.lifespan < 0; }
 }
 
-// --- CLASE PARTICLESYSTEM MODIFICADA ---
+// Clase para el sistema del Plexus
 class ParticleSystem {
   constructor() {
     this.origin = createVector(width / 2, height / 2);
     this.particles = [];
   }
-  
-  // Se modifica para pasar el origen a cada partícula nueva
   addParticle() {
     this.particles.push(new Particle(this.origin.x, this.origin.y, this.origin));
   }
-  
   run() {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       let p = this.particles[i];
       p.update();
       p.display();
-      if (p.isDead()) {
-        this.particles.splice(i, 1);
-      }
+      if (p.isDead()) { this.particles.splice(i, 1); }
     }
     stroke(fondoBlanco ? 0 : 255, 88);
     strokeWeight(1);
     for (let i = 0; i < this.particles.length; i++) {
       for (let j = i + 1; j < this.particles.length; j++) {
-        if (dist(this.particles[i].pos.x, this.particles[i].pos.y,
-            this.particles[j].pos.x, this.particles[j].pos.y) < 50) {
-          line(this.particles[i].pos.x, this.particles[i].pos.y,
-            this.particles[j].pos.x, this.particles[j].pos.y);
-        }
-        const maxParticles = 100;
-        if (this.particles.length > maxParticles) {
-          this.particles.splice(0, this.particles.length - maxParticles);
+        if (dist(this.particles[i].pos.x, this.particles[i].pos.y, this.particles[j].pos.x, this.particles[j].pos.y) < CONFIG.PARTICLE_CONNECTION_DISTANCE) {
+          line(this.particles[i].pos.x, this.particles[i].pos.y, this.particles[j].pos.x, this.particles[j].pos.y);
         }
       }
+    }
+    if (this.particles.length > CONFIG.PARTICLE_MAX_PER_SYSTEM) {
+      this.particles.splice(0, this.particles.length - CONFIG.PARTICLE_MAX_PER_SYSTEM);
     }
   }
 }
 
-class Molecula {
-  constructor(x, y, letra) {
+// NUEVA CLASE PARA LAS LETRAS (DEL PROTOTIPO)
+class LetterParticle {
+  constructor(x, y, l, targetX, targetY) {
     this.pos = createVector(x, y);
-    this.vel = p5.Vector.random2D().mult(random(2, 5));
+    this.vel = p5.Vector.random2D().mult(random(1, 3));
     this.acc = createVector(0, 0);
     this.lifespan = 255;
-    this.letra = letra;
-    this.textSize = random(20, 50);
+    this.letter = l;
+    this.angle = random(TWO_PI);
+    this.target = createVector(targetX, targetY);
   }
+
+  arrive() {
+    let desired = p5.Vector.sub(this.target, this.pos);
+    let d = desired.mag();
+    let speed = CONFIG.LETRA_MAX_SPEED;
+    if (d < 100) {
+      speed = map(d, 0, 100, 0, CONFIG.LETRA_MAX_SPEED);
+    }
+    desired.setMag(speed);
+    let steer = p5.Vector.sub(desired, this.vel);
+    steer.limit(CONFIG.LETRA_MAX_FORCE);
+    return steer;
+  }
+
   update() {
+    this.acc.add(this.arrive());
     this.vel.add(this.acc);
+    this.vel.limit(CONFIG.LETRA_MAX_SPEED);
     this.pos.add(this.vel);
-    this.lifespan -= 2;
-    this.vel.mult(0.98);
+    this.lifespan -= CONFIG.LETRA_LIFESPAN_DECAY;
+    this.acc.mult(0);
+    this.angle += this.vel.mag() * CONFIG.LETRA_ROTATION_SPEED_FACTOR;
   }
+
   display() {
     fill(fondoBlanco ? 0 : 255, this.lifespan);
-    noStroke();
-    textSize(this.textSize);
+    push();
+    translate(this.pos.x, this.pos.y);
+    rotate(this.angle);
+    textSize(20); // Tamaño fijo para consistencia
     textAlign(CENTER, CENTER);
-    text(this.letra, this.pos.x, this.pos.y);
+    text(this.letter, 0, 0);
+    pop();
   }
-  isDead() {
-    return this.lifespan < 0;
-  }
+
+  isDead() { return this.lifespan < 0; }
 }
 
-class MoleculaSystem {
+// NUEVO SISTEMA PARA LAS LETRAS
+class LetterParticleSystem {
   constructor() {
     this.origin = createVector(width / 2, height / 2);
-    this.moleculas = [];
+    this.letterParticles = [];
   }
-  addMolecula(letra) {
-    this.moleculas.push(new Molecula(this.origin.x, this.origin.y, letra));
+  addLetter(letter, targetX, targetY) {
+    this.letterParticles.push(new LetterParticle(this.origin.x, this.origin.y, letter, targetX, targetY));
   }
   run() {
-    for (let i = this.moleculas.length - 1; i >= 0; i--) {
-      let m = this.moleculas[i];
-      m.update();
-      m.display();
-      if (m.isDead()) {
-        this.moleculas.splice(i, 1);
+    for (let i = this.letterParticles.length - 1; i >= 0; i--) {
+      let l = this.letterParticles[i];
+      l.update();
+      l.display();
+      if (l.isDead()) {
+        this.letterParticles.splice(i, 1);
       }
     }
   }
 }
+
+// --- FUNCIONES PRINCIPALES ---
 
 function preload() {
   interfaz = loadImage("fondonegro.png");
@@ -199,24 +212,23 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   notaX = width - 60;
   notaY = 60;
-  noCanvasScroll();
+  document.body.style.overflow = 'hidden';
 
   osciladorSonido = new p5.Oscillator(waveTypes[currentWaveIndex]);
   osciladorSonido.amp(0);
   osciladorSonido.start();
-
-  osciladorMoleculas = new p5.Oscillator('triangle');
-  osciladorMoleculas.amp(0);
-  osciladorMoleculas.start();
+  osciladorLetras = new p5.Oscillator('triangle');
+  osciladorLetras.amp(0);
+  osciladorLetras.start();
 
   botonGrabar = select('.boton-grabar');
   botonBack = select('.boton-back');
-  botonAcordes = select('.boton-acordes');
+  botonLetras = select('.boton-acordes');
   botonParticulas = select('.boton-particulas');
 
   botonGrabar.mousePressed(() => { fondoBlanco = !fondoBlanco; });
   botonBack.mousePressed(() => { modo = 'sonido'; apagarOsciladores(); });
-  botonAcordes.mousePressed(() => { modo = 'acordes'; apagarOsciladores(); });
+  botonLetras.mousePressed(() => { modo = 'letras'; apagarOsciladores(); });
   botonParticulas.mousePressed(() => { modo = 'arpegio'; apagarOsciladores(); });
 }
 
@@ -230,7 +242,7 @@ function draw() {
     return;
   }
 
-  background(fondoBlanco ? colors.white : colors.black);
+  background(fondoBlanco ? colors.white : colors.black, 40); // Fondo con estela
   if (!fondoBlanco) { image(interfaz, 0, 0, width, height); }
 
   push();
@@ -240,29 +252,7 @@ function draw() {
 
   dibujarGuias();
 
-  push();
-  stroke(fondoBlanco ? 0 : 255, 80);
-  strokeWeight(1);
-  const limiteSuperior = height * 0.2;
-  const limiteInferior = height;
-  const alturaCuadricula = limiteInferior - limiteSuperior;
-  for (let i = 1; i < 5; i++) {
-    let y = limiteSuperior + (alturaCuadricula / 5) * i;
-    line(0, y, width, y);
-  }
-  pop();
-
-  let points;
-  if (touches.length > 0) {
-    points = touches;
-  } else if (mouseTouchActivo) {
-    mouseTouchPos.x = mouseX;
-    mouseTouchPos.y = mouseY;
-    points = [mouseTouchPos];
-  } else {
-    points = [];
-  }
-
+  let points = (touches.length > 0) ? touches : (mouseTouchActivo ? [{ x: mouseX, y: mouseY }] : []);
   let limite = height * 0.8;
   points = points.filter(p => p.y < limite);
 
@@ -270,27 +260,8 @@ function draw() {
     manejarParticulas(points, osciladorSonido);
   } else if (modo === 'arpegio') {
     manejarArpegio(points, osciladorSonido);
-  } else if (modo === 'acordes') {
-    manejarMoleculas(points, osciladorMoleculas);
-  }
-
-  for (let i = letterParticles.length - 1; i >= 0; i--) {
-    let m = letterParticles[i];
-    m.update();
-    m.display();
-    if (m.isDead()) {
-      letterParticles.splice(i, 1);
-      continue;
-    }
-    for (let j = i - 1; j >= 0; j--) {
-      let other = letterParticles[j];
-      let d = dist(m.pos.x, m.pos.y, other.pos.x, other.pos.y);
-      if (d < 60) {
-        stroke(fondoBlanco ? 0 : 255, 50);
-        strokeWeight(1);
-        line(m.pos.x, m.pos.y, other.pos.x, other.pos.y);
-      }
-    }
+  } else if (modo === 'letras') {
+    manejarLetras(points, osciladorLetras);
   }
 
   push();
@@ -302,27 +273,152 @@ function draw() {
   pop();
 }
 
-function cambiarFormaOnda() {
-  currentWaveIndex = (currentWaveIndex + 1) % waveTypes.length;
-  osciladorSonido.setType(waveTypes[currentWaveIndex]);
-  console.log("Forma de onda cambiada a: " + waveTypes[currentWaveIndex]);
-}
+// --- FUNCIONES DE INTERACCIÓN ---
 
 function mousePressed() {
   if (!haIniciado) {
     activarContextoAudio();
     haIniciado = true;
-  } else {
-    let notaRadio = 30;
-    if (dist(mouseX, mouseY, notaX, notaY) < notaRadio) {
-      cambiarFormaOnda();
-      return;
-    }
+    return;
   }
-
+  if (dist(mouseX, mouseY, notaX, notaY) < CONFIG.NOTA_ICON_RADIO) {
+    cambiarFormaOnda();
+    return;
+  }
   if (touches.length === 0) {
     mouseTouchActivo = !mouseTouchActivo;
   }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  notaX = width - 60;
+  notaY = 60;
+}
+
+// --- FUNCIONES MANEJADORAS ---
+
+function manejarParticulas(points, oscilador) {
+  gestionarSistemas(points, particleSystems, ParticleSystem);
+  for (let i = 0; i < points.length; i++) {
+    let t = points[i];
+    let ps = particleSystems[i];
+    ps.origin.set(t.x, t.y);
+    ps.addParticle();
+    ps.run();
+    procesarAudioParaPunto(t, oscilador);
+  }
+  apagarOsciladorSiNoHayPuntos(points, oscilador);
+}
+
+function manejarArpegio(points, oscilador) {
+  manejarParticulas(points, null);
+  if (points.length > 0) {
+    let t = points[0];
+    let resultado = getEscalaPorSlice(t);
+    if (resultado) {
+      let notasDelAcorde = resultado.escala;
+      let arpegioSpeed = map(t.y, height * 0.2, height, CONFIG.ARPEGGIO_SPEED_MIN, CONFIG.ARPEGGIO_SPEED_MAX);
+      if (millis() - arpegioClock > arpegioSpeed) {
+        let frecuenciaActual = escalasVertical[notasDelAcorde][arpegioNoteIndex];
+        activarOscilador(oscilador, frecuenciaActual, 0.5);
+        arpegioNoteIndex = (arpegioNoteIndex + 1) % escalasVertical[notasDelAcorde].length;
+        arpegioClock = millis();
+      }
+    }
+  } else {
+    oscilador.amp(0, CONFIG.AUDIO_AMP_RELEASE);
+  }
+}
+
+// NUEVA FUNCIÓN MANEJADORA DE LETRAS
+function manejarLetras(points, oscilador) {
+  // 1. Dibuja el plexus/nido de fondo
+  gestionarSistemas(points, particleSystems, ParticleSystem);
+  for (let i = 0; i < points.length; i++) {
+    let t = points[i];
+    let ps = particleSystems[i];
+    ps.origin.set(t.x, t.y);
+    ps.addParticle();
+    ps.run();
+  }
+
+  // 2. Gestiona y genera las letras desde los puntos de toque
+  gestionarSistemas(points, letterParticleSystems, LetterParticleSystem);
+  if (frameCount % 5 === 0) { // Controla la velocidad de generación
+      for (let i = 0; i < points.length; i++) {
+        let t = points[i];
+        let lps = letterParticleSystems[i];
+        lps.origin.set(t.x, t.y);
+        
+        // Evita generar espacios en blanco como letras
+        let charToAdd = phrase.charAt(phraseIndex);
+        if (charToAdd.trim() !== '') {
+            let totalLetras = phrase.replace(/\s/g, '').length;
+            let currentLetterIndex = phrase.substring(0, phraseIndex).replace(/\s/g, '').length;
+            let espaciado = width / (totalLetras + 1);
+            let targetX = espaciado * (currentLetterIndex + 1);
+            let targetY = height / 2;
+            lps.addLetter(charToAdd, targetX, targetY);
+        }
+        
+        phraseIndex = (phraseIndex + 1) % phrase.length;
+      }
+  }
+  
+  // 3. Corre los sistemas de letras
+  for (let lps of letterParticleSystems) {
+      lps.run();
+  }
+
+  // 4. Gestiona el audio
+  if (points.length > 0) {
+      procesarAudioParaPunto(points[0], oscilador);
+  }
+  apagarOsciladorSiNoHayPuntos(points, oscilador);
+}
+
+// --- FUNCIONES AYUDANTES ---
+
+function gestionarSistemas(puntos, listaDeSistemas, ClaseDelSistema) {
+  while (listaDeSistemas.length < puntos.length) {
+    listaDeSistemas.push(new ClaseDelSistema());
+  }
+  while (listaDeSistemas.length > puntos.length) {
+    listaDeSistemas.pop();
+  }
+}
+
+function procesarAudioParaPunto(punto, oscilador) {
+  if (oscilador) {
+    let resultado = getEscalaPorSlice(punto);
+    if (resultado) {
+      activarOscilador(oscilador, resultado.frecuencia);
+    }
+  }
+}
+
+function apagarOsciladorSiNoHayPuntos(puntos, oscilador) {
+  if (oscilador && puntos.length === 0) {
+    oscilador.amp(0, CONFIG.AUDIO_AMP_ATTACK);
+  }
+}
+
+function activarOscilador(oscilador, frecuencia, volumen = 0.5) {
+  oscilador.freq(frecuencia, 0.01);
+  oscilador.amp(volumen, CONFIG.AUDIO_AMP_ATTACK);
+}
+
+function apagarOsciladores() {
+  osciladorSonido.amp(0, CONFIG.AUDIO_AMP_ATTACK);
+  osciladorLetras.amp(0, CONFIG.AUDIO_AMP_ATTACK);
+}
+
+function cambiarFormaOnda() {
+  currentWaveIndex = (currentWaveIndex + 1) % waveTypes.length;
+  let newType = waveTypes[currentWaveIndex];
+  osciladorSonido.setType(newType);
+  console.log("Forma de onda cambiada a: " + newType);
 }
 
 function activarContextoAudio() {
@@ -332,120 +428,32 @@ function activarContextoAudio() {
   }
 }
 
-function activarOscilador(oscilador, frecuencia, volumen = 0.5) {
-  oscilador.freq(frecuencia, 0.01);
-  oscilador.amp(volumen, 0.05);
-}
-
-function manejarArpegio(points, oscilador) {
-  manejarParticulas(points, null);
-
-  if (points.length > 0) {
-    let t = points[0];
-    let resultado = getEscalaPorSlice(t);
-
-    if (resultado) {
-      let notasDelAcorde = resultado.escala;
-      const limiteSuperior = height * 0.2;
-      const limiteInferior = height;
-
-      arpegioSpeed = map(t.y, limiteSuperior, limiteInferior, 50, 400);
-
-      if (millis() - arpegioClock > arpegioSpeed) {
-        let frecuenciaActual = escalasVertical[notasDelAcorde][arpegioNoteIndex];
-        activarOscilador(oscilador, frecuenciaActual, 0.5);
-        arpegioNoteIndex = (arpegioNoteIndex + 1) % escalasVertical[notasDelAcorde].length;
-        arpegioClock = millis();
-      }
-    }
-  } else {
-    oscilador.amp(0, 0.1);
-  }
-}
-
-function manejarParticulas(points, oscilador) {
-  while (particleSystems.length < points.length) {
-    particleSystems.push(new ParticleSystem());
-  }
-  while (particleSystems.length > points.length) {
-    particleSystems.pop();
-  }
-
-  for (let i = 0; i < points.length; i++) {
-    let t = points[i];
-    let ps = particleSystems[i];
-    ps.origin.set(t.x, t.y);
-    ps.addParticle();
-    ps.run();
-
-    if (oscilador) {
-      let resultado = getEscalaPorSlice(t);
-      if (resultado) {
-        activarOscilador(oscilador, resultado.frecuencia);
-      }
-    }
-  }
-  if (oscilador && points.length === 0) {
-    oscilador.amp(0, 0.05);
-  }
-}
-
-function manejarMoleculas(points, oscilador) {
-  while (moleculaSystems.length < points.length) {
-    moleculaSystems.push(new MoleculaSystem());
-  }
-  while (moleculaSystems.length > points.length) {
-    moleculaSystems.pop();
-  }
-
-  for (let i = 0; i < points.length; i++) {
-    let t = points[i];
-    let ms = moleculaSystems[i];
-    ms.origin.set(t.x, t.y);
-    let nextLetter = phrase.charAt(phraseIndex);
-    ms.addMolecula(nextLetter);
-    phraseIndex = (phraseIndex + 1) % phrase.length;
-    ms.run();
-    if (oscilador) {
-      let resultado = getEscalaPorSlice(t);
-      if (resultado) {
-        activarOscilador(oscilador, resultado.frecuencia);
-      }
-    }
-  }
-  if (oscilador && points.length === 0) {
-    oscilador.amp(0, 0.05);
-  }
-}
-
-function apagarOsciladores() {
-  osciladorSonido.amp(0, 0.05);
-  osciladorMoleculas.amp(0, 0.05);
-  letterParticles = [];
-}
-
 const escalasVertical = {
-    'Am': [220.00, 261.63, 293.66, 329.63, 392.00],
-    'G':  [196.00, 220.00, 246.94, 293.66, 329.63],
-    'C':  [261.63, 293.66, 329.63, 392.00, 440.00],
-    'F':  [174.61, 220.00, 261.63, 293.66, 349.23]
+  'Am': [220.00, 261.63, 329.63, 440.00, 523.25], // La, Do, Mi, La, Do
+  'Em': [164.81, 196.00, 246.94, 329.63, 392.00], // Mi, Sol, Si, Mi, Sol
+  'C':  [261.63, 329.63, 392.00, 523.25, 659.26], // Do, Mi, Sol, Do, Mi
+  'G7': [196.00, 246.94, 293.66, 349.23, 392.00]  // Sol, Si, Re, Fa, Sol
 };
-  
+
 function getEscalaPorSlice(puntoToque) {
-    const limiteSuperior = height * 0.2;
-    const limiteInferior = height;
-    let anchoColumna = width / 4;
-    let columna = floor(puntoToque.x / anchoColumna);
-    let escalaSeleccionada;
-    if (columna === 0) escalaSeleccionada = 'Am';
-    else if (columna === 1) escalaSeleccionada = 'G';
-    else if (columna === 2) escalaSeleccionada = 'C';
-    else if (columna === 3) escalaSeleccionada = 'F';
-    else return null;
-    let notas = escalasVertical[escalaSeleccionada];
-    let indice = floor(map(puntoToque.y, limiteSuperior, limiteInferior, 0, notas.length));
-    indice = constrain(indice, 0, notas.length - 1);
-    return { escala: escalaSeleccionada, frecuencia: notas[indice] };
+  const limiteSuperior = height * 0.2;
+  const limiteInferior = height;
+  let anchoColumna = width / 4;
+  let columna = floor(puntoToque.x / anchoColumna);
+  
+  let escalaSeleccionada;
+  // Nueva progresión de acordes
+  if (columna === 0) escalaSeleccionada = 'Am';
+  else if (columna === 1) escalaSeleccionada = 'Em';
+  else if (columna === 2) escalaSeleccionada = 'C';
+  else if (columna === 3) escalaSeleccionada = 'G7';
+  else return null;
+
+  let notas = escalasVertical[escalaSeleccionada];
+  let indice = floor(map(puntoToque.y, limiteSuperior, limiteInferior, 0, notas.length));
+  indice = constrain(indice, 0, notas.length - 1);
+  
+  return { escala: escalaSeleccionada, frecuencia: notas[indice] };
 }
 
 function dibujarGuias() {
@@ -460,11 +468,4 @@ function dibujarGuias() {
   }
   drawingContext.setLineDash([]);
   pop();
-}
-
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-  // Actualizar la posición de la nota al cambiar el tamaño de la ventana
-  notaX = width - 60;
-  notaY = 60;
 }
